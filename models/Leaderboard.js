@@ -1,117 +1,138 @@
-const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 const config = require('../config');
 
+// JSON 文件存储路径
+const dataPath = config.dbPath.replace(/\.db$/, '.json');
+
 // 确保数据目录存在
-const dataDir = path.dirname(config.dbPath);
+const dataDir = path.dirname(dataPath);
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const db = new Database(config.dbPath);
+// 读取数据
+function readData() {
+  try {
+    if (fs.existsSync(dataPath)) {
+      const raw = fs.readFileSync(dataPath, 'utf-8');
+      return JSON.parse(raw);
+    }
+  } catch (e) {
+    console.error('[Leaderboard] 读取数据失败:', e.message);
+  }
+  return [];
+}
 
-// 初始化表结构
-db.exec(`
-  CREATE TABLE IF NOT EXISTS leaderboard (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    game_type TEXT NOT NULL,
-    room_id TEXT NOT NULL,
-    winner TEXT,
-    tie INTEGER DEFAULT 0,
-    team_a_players TEXT NOT NULL DEFAULT '[]',
-    team_b_players TEXT NOT NULL DEFAULT '[]',
-    team_a_score INTEGER DEFAULT 0,
-    team_b_score INTEGER DEFAULT 0,
-    mvp_user_id TEXT,
-    mvp_nick_name TEXT DEFAULT '',
-    duration INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+// 写入数据
+function writeData(data) {
+  try {
+    fs.writeFileSync(dataPath, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('[Leaderboard] 写入数据失败:', e.message);
+  }
+}
 
-  CREATE INDEX IF NOT EXISTS idx_leaderboard_game_type
-    ON leaderboard(game_type, created_at DESC);
-`);
+// 初始化：确保文件存在
+if (!fs.existsSync(dataPath)) {
+  writeData([]);
+}
 
 const Leaderboard = {
   // 保存一局游戏结果
   save(result) {
-    const stmt = db.prepare(`
-      INSERT INTO leaderboard
-        (game_type, room_id, winner, tie, team_a_players, team_b_players,
-         team_a_score, team_b_score, mvp_user_id, mvp_nick_name, duration)
-      VALUES (@gameType, @roomId, @winner, @tie, @teamAPlayers, @teamBPlayers,
-              @teamAScore, @teamBScore, @mvp, @mvpNickName, @duration)
-    `);
-
-    const info = stmt.run({
-      gameType: 'tug-of-war',
+    const data = readData();
+    const record = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      gameType: result.gameType || 'tug-of-war',
       roomId: result.roomId || '',
       winner: result.winner || '',
       tie: result.tie ? 1 : 0,
-      teamAPlayers: JSON.stringify(result.teamAPlayers || []),
-      teamBPlayers: JSON.stringify(result.teamBPlayers || []),
+      teamAPlayers: result.teamAPlayers || [],
+      teamBPlayers: result.teamBPlayers || [],
       teamAScore: result.teamAScore || 0,
       teamBScore: result.teamBScore || 0,
       mvp: result.mvp || '',
       mvpNickName: result.mvpNickName || '',
       duration: result.duration || 0,
-    });
-
-    return info.lastInsertRowid;
+      createdAt: new Date().toISOString(),
+    };
+    data.push(record);
+    writeData(data);
+    return record.id;
   },
 
   // 获取排行榜列表
-  getList(gameType = 'tug-of-war', limit = 50, offset = 0) {
-    const stmt = db.prepare(`
-      SELECT * FROM leaderboard
-      WHERE game_type = ?
-      ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
-    `);
-    const rows = stmt.all(gameType, limit, offset);
+  getList(gameType, limit, offset) {
+    if (gameType === undefined) gameType = 'tug-of-war';
+    if (limit === undefined) limit = 50;
+    if (offset === undefined) offset = 0;
 
-    return rows.map(row => ({
-      id: row.id,
-      winner: row.winner,
-      tie: !!row.tie,
-      teamAPlayers: JSON.parse(row.team_a_players || '[]'),
-      teamBPlayers: JSON.parse(row.team_b_players || '[]'),
-      teamAScore: row.team_a_score,
-      teamBScore: row.team_b_score,
-      mvp: row.mvp_user_id,
-      mvpNickName: row.mvp_nick_name,
-      duration: row.duration,
-      createdAt: row.created_at,
-    }));
+    const data = readData();
+    return data
+      .filter(function(row) { return row.gameType === gameType; })
+      .sort(function(a, b) { return b.createdAt.localeCompare(a.createdAt); })
+      .slice(offset, offset + limit)
+      .map(function(row) {
+        return {
+          id: row.id,
+          winner: row.winner,
+          tie: !!row.tie,
+          teamAPlayers: row.teamAPlayers || [],
+          teamBPlayers: row.teamBPlayers || [],
+          teamAScore: row.teamAScore,
+          teamBScore: row.teamBScore,
+          mvp: row.mvp,
+          mvpNickName: row.mvpNickName || '',
+          duration: row.duration,
+          createdAt: row.createdAt,
+        };
+      });
   },
 
   // 获取个人统计
   getPlayerStats(userId) {
-    const stmt = db.prepare(`
-      SELECT
-        COUNT(*) as totalGames,
-        SUM(CASE WHEN winner = 'A' AND team_a_players LIKE ? THEN 1
-                 WHEN winner = 'B' AND team_b_players LIKE ? THEN 1
-                 ELSE 0 END) as wins,
-        SUM(CASE WHEN mvp_user_id = ? THEN 1 ELSE 0 END) as mvpCount
-      FROM leaderboard
-      WHERE (team_a_players LIKE ? OR team_b_players LIKE ?)
-        AND game_type = 'tug-of-war'
-    `);
+    var data = readData();
+    var totalGames = 0;
+    var wins = 0;
+    var mvpCount = 0;
 
-    const pattern = `%"${userId}"%`;
-    const row = stmt.get(pattern, pattern, userId, pattern, pattern);
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      if (row.gameType !== 'tug-of-war') continue;
+
+      var isInTeamA = false;
+      var isInTeamB = false;
+      var teamAPlayers = row.teamAPlayers || [];
+      var teamBPlayers = row.teamBPlayers || [];
+
+      for (var j = 0; j < teamAPlayers.length; j++) {
+        if (teamAPlayers[j].userId === userId) { isInTeamA = true; break; }
+      }
+      for (var k = 0; k < teamBPlayers.length; k++) {
+        if (teamBPlayers[k].userId === userId) { isInTeamB = true; break; }
+      }
+
+      if (isInTeamA || isInTeamB) {
+        totalGames++;
+        if ((isInTeamA && row.winner === 'A') || (isInTeamB && row.winner === 'B')) {
+          wins++;
+        }
+      }
+      if (row.mvp === userId) {
+        mvpCount++;
+      }
+    }
 
     return {
-      totalGames: row.totalGames || 0,
-      wins: row.wins || 0,
-      mvpCount: row.mvpCount || 0,
+      totalGames: totalGames,
+      wins: wins,
+      mvpCount: mvpCount,
     };
   },
 
   close() {
-    db.close();
+    // JSON 文件不需要关闭
   },
 };
 

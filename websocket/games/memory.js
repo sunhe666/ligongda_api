@@ -1,5 +1,5 @@
-const { MSG_TYPES, createMessage } = require('../../../shared/protocol');
-const { TEAMS, GAME_STATUS, COUNTDOWN_SECONDS } = require('../../../shared/constants');
+const { MSG_TYPES, createMessage } = require('../../shared/protocol');
+const { TEAMS, GAME_STATUS, COUNTDOWN_SECONDS } = require('../../shared/constants');
 
 /**
  * 数字记忆王 - 团队记忆数字对决（多人版）

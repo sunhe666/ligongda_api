@@ -1,5 +1,5 @@
-const { MSG_TYPES, createMessage } = require('../../../shared/protocol');
-const { TEAMS, GAME_STATUS, COUNTDOWN_SECONDS } = require('../../../shared/constants');
+const { MSG_TYPES, createMessage } = require('../../shared/protocol');
+const { TEAMS, GAME_STATUS, COUNTDOWN_SECONDS } = require('../../shared/constants');
 
 // 词库
 const WORD_BANK = [

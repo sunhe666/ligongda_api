@@ -19,8 +19,17 @@ app.use((req, res, next) => {
   next();
 });
 
-// 静态文件服务 - 前端页面
-app.use(express.static(path.join(__dirname, '..', 'web')));
+// 静态文件服务 - 前端页面（本地开发时可用，Render 上可选）
+const webPath = path.join(__dirname, '..', 'web');
+try {
+  const fs = require('fs');
+  if (fs.existsSync(webPath)) {
+    app.use(express.static(webPath));
+    console.log('[INFO] 静态文件服务已启用: ' + webPath);
+  }
+} catch (e) {
+  console.log('[INFO] 静态文件服务未启用（前端需单独部署）');
+}
 
 // REST API 路由
 app.use('/api', apiRoutes);
@@ -32,12 +41,11 @@ wss.on('connection', (ws, req) => {
   handleConnection(ws, req);
 });
 
-// 启动服务
-server.listen(config.port, config.host, () => {
+// 启动服务（Render 只需传端口号）
+server.listen(config.port, () => {
   console.log(`🎮 微信小游戏后端服务已启动`);
-  console.log(`   HTTP:    http://${config.host}:${config.port}`);
-  console.log(`   WebSocket: ws://${config.host}:${config.port}`);
-  console.log(`   API:     http://${config.host}:${config.port}/api/health`);
+  console.log(`   PORT:    ${config.port}`);
+  console.log(`   API:     http://localhost:${config.port}/api/health`);
 });
 
 // 优雅退出

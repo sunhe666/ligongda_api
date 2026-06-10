@@ -1,5 +1,5 @@
-const { GAME_STATUS, GAME_DURATION, ROPE_THRESHOLD, TEAMS, COUNTDOWN_SECONDS } = require('../../../shared/constants');
-const { MSG_TYPES, createMessage } = require('../../../shared/protocol');
+const { GAME_STATUS, GAME_DURATION, ROPE_THRESHOLD, TEAMS, COUNTDOWN_SECONDS } = require('../../shared/constants');
+const { MSG_TYPES, createMessage } = require('../../shared/protocol');
 const Leaderboard = require('../../models/Leaderboard');
 
 /**

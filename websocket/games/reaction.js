@@ -1,5 +1,5 @@
-const { MSG_TYPES, createMessage } = require('../../../shared/protocol');
-const { TEAMS, GAME_STATUS, COUNTDOWN_SECONDS } = require('../../../shared/constants');
+const { MSG_TYPES, createMessage } = require('../../shared/protocol');
+const { TEAMS, GAME_STATUS, COUNTDOWN_SECONDS } = require('../../shared/constants');
 
 /**
  * 反应大比拼 - 团队反应速度对决（多人版）

@@ -1,5 +1,5 @@
-const { MSG_TYPES, createMessage, parseMessage } = require('../../shared/protocol');
-const { TEAMS, ROOM_STATUS, GAME_TYPES } = require('../../shared/constants');
+const { MSG_TYPES, createMessage, parseMessage } = require('../shared/protocol');
+const { TEAMS, ROOM_STATUS, GAME_TYPES } = require('../shared/constants');
 const Room = require('../models/Room');
 const TugOfWarGame = require('./games/tug-of-war');
 const ReactionGame = require('./games/reaction');

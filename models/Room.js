@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { TEAMS, ROOM_STATUS, PLAYER_LIMITS } = require('../../shared/constants');
+const { TEAMS, ROOM_STATUS, PLAYER_LIMITS } = require('../shared/constants');
 
 // 内存中的房间存储（生产环境可换 Redis）
 const rooms = new Map();
